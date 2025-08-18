@@ -4,9 +4,19 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-export const prisma = globalForPrisma.prisma ?? new PrismaClient()
+export const prisma = globalForPrisma.prisma ?? new PrismaClient({
+  log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL || 'file:./dev.db'
+    }
+  }
+})
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+
+// Check if we're in a build environment
+const isBuildTime = process.env.NODE_ENV === 'production' && !process.env.VERCEL_ENV
 
 // Database operations for bookings
 export async function saveBookingToDatabase(bookingData: {
@@ -23,6 +33,49 @@ export async function saveBookingToDatabase(bookingData: {
   paymentStatus: string
   bookingStatus: string
 }) {
+  // If we're in build time, return a mock booking to prevent build errors
+  if (isBuildTime) {
+    console.log('Build time detected, returning mock booking')
+    return {
+      id: 'mock-booking-id',
+      apartmentId: bookingData.apartmentId,
+      userId: 'mock-user-id',
+      checkIn: new Date(bookingData.checkIn),
+      checkOut: new Date(bookingData.checkOut),
+      guests: bookingData.guests,
+      totalAmount: bookingData.totalAmount,
+      status: 'CONFIRMED' as any,
+      notes: bookingData.notes,
+      stripeSessionId: bookingData.sessionId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      apartment: {
+        id: bookingData.apartmentId,
+        name: 'Mock Apartment',
+        description: 'Mock description',
+        pricePerNight: 200,
+        maxGuests: 4,
+        bedrooms: 2,
+        bathrooms: 1,
+        address: 'Mock Address',
+        amenities: '[]',
+        images: '[]',
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      user: {
+        id: 'mock-user-id',
+        email: bookingData.guestEmail,
+        name: bookingData.guestName,
+        phone: bookingData.guestPhone,
+        role: 'GUEST' as any,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    }
+  }
+
   try {
     // First, ensure the apartment exists
     let apartment = await prisma.apartment.findUnique({
@@ -106,14 +159,25 @@ export async function saveBookingToDatabase(bookingData: {
 
 // Get booking by session ID
 export async function getBookingBySessionId(sessionId: string) {
-  return await prisma.booking.findFirst({
-    where: { stripeSessionId: sessionId },
-    include: {
-      apartment: true,
-      user: true,
-      payments: true
-    }
-  })
+  // If we're in build time, return null to prevent build errors
+  if (isBuildTime) {
+    console.log('Build time detected, skipping database query')
+    return null
+  }
+
+  try {
+    return await prisma.booking.findFirst({
+      where: { stripeSessionId: sessionId },
+      include: {
+        apartment: true,
+        user: true,
+        payments: true
+      }
+    })
+  } catch (error) {
+    console.error('Error fetching booking:', error)
+    return null
+  }
 }
 
 // Update apartment availability

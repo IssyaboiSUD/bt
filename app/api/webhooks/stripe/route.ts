@@ -4,6 +4,9 @@ import { headers } from 'next/headers'
 import { saveBookingToDatabase, updateApartmentAvailability } from '../../../../lib/database'
 import { sendConfirmationEmail, sendHostNotification, sendErrorNotification } from '../../../../lib/email'
 
+// Prevent this route from being built during build time
+export const dynamic = 'force-dynamic'
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-07-30.basil',
 })

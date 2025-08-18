@@ -1,5 +1,8 @@
 import nodemailer from 'nodemailer'
 
+// Check if we're in a build environment
+const isBuildTime = process.env.NODE_ENV === 'production' && !process.env.VERCEL_ENV
+
 // Create email transporter
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
@@ -13,6 +16,12 @@ const transporter = nodemailer.createTransport({
 
 // Send confirmation email to guest
 export async function sendConfirmationEmail(booking: any) {
+  // If we're in build time, skip email sending
+  if (isBuildTime) {
+    console.log('Build time detected, skipping email sending')
+    return
+  }
+
   try {
     const checkInDate = new Date(booking.checkIn).toLocaleDateString('en-US', {
       weekday: 'long',
@@ -124,6 +133,12 @@ export async function sendConfirmationEmail(booking: any) {
 
 // Send notification to host/admin
 export async function sendHostNotification(booking: any) {
+  // If we're in build time, skip email sending
+  if (isBuildTime) {
+    console.log('Build time detected, skipping host notification email')
+    return
+  }
+
   try {
     const checkInDate = new Date(booking.checkIn).toLocaleDateString('en-US', {
       weekday: 'long',
@@ -208,6 +223,12 @@ export async function sendHostNotification(booking: any) {
 
 // Send error notification to admin
 export async function sendErrorNotification(error: any, session: any) {
+  // If we're in build time, skip email sending
+  if (isBuildTime) {
+    console.log('Build time detected, skipping error notification email')
+    return
+  }
+
   try {
     const errorEmailHtml = `
     <!DOCTYPE html>
