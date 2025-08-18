@@ -7,14 +7,32 @@ import { sendConfirmationEmail, sendHostNotification, sendErrorNotification } fr
 // Prevent this route from being built during build time
 export const dynamic = 'force-dynamic'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-07-30.basil',
-})
-
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
+// Initialize Stripe client and webhook secret inside the function
+function getStripeConfig() {
+  const secretKey = process.env.STRIPE_SECRET_KEY
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
+  
+  if (!secretKey) {
+    throw new Error('STRIPE_SECRET_KEY environment variable is not set')
+  }
+  
+  if (!webhookSecret) {
+    throw new Error('STRIPE_WEBHOOK_SECRET environment variable is not set')
+  }
+  
+  return {
+    stripe: new Stripe(secretKey, {
+      apiVersion: '2025-07-30.basil',
+    }),
+    webhookSecret
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
+    // Get Stripe configuration
+    const { stripe, webhookSecret } = getStripeConfig()
+    
     const body = await request.text()
     const headersList = await headers()
     const signature = headersList.get('stripe-signature')

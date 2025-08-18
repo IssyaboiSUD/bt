@@ -4,12 +4,24 @@ import Stripe from 'stripe'
 // Prevent this route from being built during build time
 export const dynamic = 'force-dynamic'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-07-30.basil',
-})
+// Initialize Stripe client inside the function to ensure environment variables are loaded
+function getStripeClient() {
+  const secretKey = process.env.STRIPE_SECRET_KEY
+  
+  if (!secretKey) {
+    throw new Error('STRIPE_SECRET_KEY environment variable is not set')
+  }
+  
+  return new Stripe(secretKey, {
+    apiVersion: '2025-07-30.basil',
+  })
+}
 
 export async function POST(request: NextRequest) {
   try {
+    // Initialize Stripe client
+    const stripe = getStripeClient()
+    
     const { 
       apartmentId, 
       apartmentName,
@@ -65,6 +77,21 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ sessionId: session.id, url: session.url })
   } catch (error) {
     console.error('Error creating checkout session:', error)
+    
+    // Provide more specific error messages
+    if (error instanceof Error) {
+      if (error.message.includes('STRIPE_SECRET_KEY')) {
+        return NextResponse.json(
+          { error: 'Payment system not configured. Please contact support.' },
+          { status: 500 }
+        )
+      }
+      return NextResponse.json(
+        { error: error.message },
+        { status: 500 }
+    )
+    }
+    
     return NextResponse.json(
       { error: 'Failed to create checkout session' },
       { status: 500 }
